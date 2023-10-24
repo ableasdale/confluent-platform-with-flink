@@ -64,6 +64,12 @@ Let's try running a SQL `SELECT` query to confirm that everything works as expec
 SELECT * FROM user_behavior;
 ```
 
+Quit out of the SQL Client by running:
+
+```sql
+exit;
+```
+
 Let's use datagen to create some pageviews:
 
 ```bash
@@ -84,7 +90,7 @@ curl -i -X PUT http://localhost:8083/connectors/datagen_local_01/config \
 docker-compose exec broker kafka-console-consumer --topic pageviews --bootstrap-server broker:29092 --from-beginning --max-messages 10
 ```
 
-Hmm.. not looking too good; let's use the avro consumer instead:
+The messages are not looking quite right; let's use the `kafka-avro-console-consumer` instead:
 
 ```bash
 docker-compose exec connect kafka-avro-console-consumer \
@@ -99,31 +105,38 @@ docker-compose exec connect kafka-avro-console-consumer \
 
 That works nicely... Let's see how Flink handles Avro:
 
+```bash
+docker-compose exec sql-client sql-client.sh
+```
+
+To create the `pageviews` table, you can use this:
+
 ```sql
 CREATE TABLE pageviews (
     viewtime BIGINT,
     userid STRING,
-    pageid STRING
+    pageid STRING,
+    `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+    `proc_time` AS PROCTIME(),
+    WATERMARK FOR `ts` AS `ts` 
 ) WITH (
-    'connector' = 'kafka',  -- using kafka connector
-    'topic' = 'pageviews',  -- kafka topic
-    'scan.startup.mode' = 'earliest-offset',  -- reading from the beginning
-    'properties.bootstrap.servers' = 'broker:29092',  -- kafka broker address
-    'format' = 'avro'  -- the data format is avro
+    'connector' = 'kafka', 
+    'topic' = 'pageviews', 
+    'scan.startup.mode' = 'earliest-offset', 
+    'properties.bootstrap.servers' = 'broker:29092', 
+    'value.format' = 'avro-confluent',
+    'value.avro-confluent.schema-registry.url' = 'http://schemaregistry:8084'
 );
 ```
+
+Now we can create a `SELECT` statement using the `pageviews` topic as the source:
 
 ```sql
 SELECT * FROM pageviews;
 ```
 
-We get:
+We get some output! :)
 
-```
-org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'avro' that implements 'org.apache.flink.table.factories.DeserializationFormatFactory' in the classpath.
-```
-
-So this is the next thing to fix... :)
 
 -----------------------------
 ### Notes below
