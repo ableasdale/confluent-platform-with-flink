@@ -1,7 +1,14 @@
 # Confluent Platform with Apache Flink
 
-- Confluent Platform 7.5.1 (TODO)
+This project will set up the following components:
+
+- Confluent Platform 7.5.1
 - Apache Flink 1.17.1
+
+When the project is running, you'll be able to access the following URLs:
+
+- Confluent Control Center: <http://localhost:9021/>
+- Apache Flink Dashboard: <http://localhost:8081/>
 
 ## Getting Started
 
@@ -16,10 +23,8 @@ docker-compose up
 After the containers have started, data should be getting loaded into Kafka; to confirm this, run:
 
 ```bash
-docker-compose exec kafka bash -c 'kafka-console-consumer.sh --topic user_behavior --bootstrap-server kafka:9094 --from-beginning --max-messages 10'
+docker-compose exec broker kafka-console-consumer --topic user_behavior --bootstrap-server broker:29092 --from-beginning --max-messages 10
 ```
-docker-compose exec broker bash -c 'kafka-console-consumer --topic user_behavior --bootstrap-server broker:29092 --from-beginning --max-messages 10'
-
 
 Now let's connect to the Flink SQL Client:
 
@@ -53,14 +58,74 @@ You should see:
 [INFO] Table has been created.
 ```
 
-Let's try running a SQL `SELECT` query:
+Let's try running a SQL `SELECT` query to confirm that everything works as expected:
 
 ```sql
 SELECT * FROM user_behavior;
 ```
 
+Let's use datagen to create some pageviews:
 
+```bash
+curl -i -X PUT http://localhost:8083/connectors/datagen_local_01/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "kafka.topic": "pageviews",
+            "quickstart": "pageviews",
+            "max.interval": 1000,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+```
 
+```bash
+docker-compose exec broker kafka-console-consumer --topic pageviews --bootstrap-server broker:29092 --from-beginning --max-messages 10
+```
+
+Hmm.. not looking too good; let's use the avro consumer instead:
+
+```bash
+docker-compose exec connect kafka-avro-console-consumer \
+ --bootstrap-server broker:29092 \
+ --property schema.registry.url=http://schemaregistry:8084 \
+ --topic pageviews \
+ --property print.key=true \
+ --property key.deserializer=org.apache.kafka.common.serialization.StringDeserializer \
+ --property key.separator=" : " \
+ --max-messages 10
+```
+
+That works nicely... Let's see how Flink handles Avro:
+
+```sql
+CREATE TABLE pageviews (
+    viewtime BIGINT,
+    userid STRING,
+    pageid STRING
+) WITH (
+    'connector' = 'kafka',  -- using kafka connector
+    'topic' = 'pageviews',  -- kafka topic
+    'scan.startup.mode' = 'earliest-offset',  -- reading from the beginning
+    'properties.bootstrap.servers' = 'broker:29092',  -- kafka broker address
+    'format' = 'avro'  -- the data format is avro
+);
+```
+
+```sql
+SELECT * FROM pageviews;
+```
+
+We get:
+
+```
+org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'avro' that implements 'org.apache.flink.table.factories.DeserializationFormatFactory' in the classpath.
+```
+
+So this is the next thing to fix... :)
+
+-----------------------------
 ### Notes below
 
 

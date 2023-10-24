@@ -1,10 +1,10 @@
 version: '2.1'
 services:
 
-  # Apache Flink Components
+  # Apache Flink Components:
 
   sql-client:
-    container_name: 'sql-client'
+    container_name: sql-client
     build:
       context: sql-client
       dockerfile: Dockerfile
@@ -34,6 +34,7 @@ services:
 
   taskmanager:
     image: flink:1.17.1-scala_2.12-java11
+    container_name: taskmanager
     depends_on:
       - jobmanager
     command: taskmanager
@@ -52,12 +53,14 @@ services:
     environment:
       KAFKA_BOOTSTRAP: broker
 
-  # Confluent Platform Components
+  # Confluent Platform Components below:
+
   broker:
     image: confluentinc/cp-server:${CP_TAG}
     hostname: broker
     container_name: broker
     ports:
+      - "9101:9101"
       - "9092:9092"
       - "8090:8090"
     environment:
@@ -74,6 +77,8 @@ services:
       KAFKA_CONFLUENT_BALANCER_ENABLE: 'false'
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_CONFLUENT_HTTP_SERVER_LISTENERS: "http://0.0.0.0:8090"
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: "http://schemaregistry:8084"
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
       KAFKA_LISTENERS: 'PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
@@ -106,6 +111,21 @@ services:
       CONTROL_CENTER_STREAMS_NUM_STREAM_THREADS: "5"
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: http://schemaregistry:8084
 
+  restproxy:
+    container_name: restproxy
+    hostname: restproxy
+    image: confluentinc/cp-kafka-rest:${CP_TAG}
+    ports: 
+      - 8082:8082
+    depends_on:
+      - broker
+      - schemaregistry
+    restart: always
+    environment:
+      KAFKA_REST_BOOTSTRAP_SERVERS: broker:29092
+      KAFKA_REST_LISTENERS: http://0.0.0.0:8082
+      KAFKA_REST_SCHEMA_REGISTRY_URL: http://schemaregistry:8084
+
   schemaregistry:
     image: confluentinc/cp-schema-registry:${CP_TAG}
     hostname: schemaregistry
@@ -118,6 +138,54 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: broker:29092
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8084
+
+  connect:
+    container_name: connect
+    hostname: connect
+    image: confluentinc/cp-enterprise-replicator:${CP_TAG}
+    ports:
+      - '8083:8083'
+    restart: always
+    depends_on:
+      - broker
+      - schemaregistry
+    volumes:
+      - $PWD/data:/data
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: broker:29092
+      CONNECT_LISTENERS: http://connect:8083
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "source"
+      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor"
+      CONNECT_PRODUCER_CONFLUENT_MONITORING_INTERCEPTOR_BOOTSTRAP_SERVERS: broker:29092
+      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
+      CONNECT_CONSUMER_CONFLUENT_MONITORING_INTERCEPTOR_BOOTSTRAP_SERVERS: broker:29092
+      CONNECT_CONFLUENT_METADATA_BOOTSTRAP_SERVER_URLS: http://broker:8090
+      # Connect Custom Topics
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-configs
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schemaregistry:8084
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schemaregistry:8084
+      CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: All
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components,/data/connect-jars
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing Connector"
+        confluent-hub install --no-prompt confluentinc/kafka-connect-datagen:0.6.3
+        #
+        echo "Launching Kafka Connect worker"
+        /etc/confluent/docker/run &
+        #
+        sleep infinity
 
 
 # Other components - commented out for now..
