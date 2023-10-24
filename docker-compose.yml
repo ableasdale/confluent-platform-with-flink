@@ -1,5 +1,8 @@
 version: '2.1'
 services:
+
+  # Apache Flink Components
+
   sql-client:
     container_name: 'sql-client'
     build:
@@ -24,10 +27,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
-    # volumes:
-    #   - ./libs:/opt/flink/lib-custom
     command: jobmanager
-    # cp -a /opt/flink/lib-custom/. /opt/flink/lib/ && 
     environment:
       - |
         FLINK_PROPERTIES=
@@ -43,6 +43,8 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 10
+
+  
   datagen:
     image: jark/datagen:0.2
     command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 2000"
