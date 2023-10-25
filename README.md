@@ -3,7 +3,15 @@
 This project will set up the following components:
 
 - Confluent Platform 7.5.1
+  - broker
+  - control-center
+  - restproxy
+  - connect
+  - 
 - Apache Flink 1.17.1
+  - sql-client
+  - jobmanager
+  - taskmanager
 
 When the project is running, you'll be able to access the following URLs in your browser:
 
@@ -13,7 +21,8 @@ When the project is running, you'll be able to access the following URLs in your
 And you have access to a number of ReST APIs:
 
 - Kafka Connect: <http://localhost:8083>
-- Schema Registry <http://localhost:8084> 
+- Schema Registry <http://localhost:8084>
+- Broker <http://localhost:8090>
 
 ## Getting Started
 
@@ -37,7 +46,7 @@ Now let's connect to the Flink SQL Client:
 docker-compose exec sql-client sql-client.sh
 ```
 
-Let's create a TABLE for the topic data:
+Let's create a `TABLE` for the topic data:
 
 ```sql
 CREATE TABLE user_behavior (

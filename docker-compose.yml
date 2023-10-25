@@ -1,4 +1,4 @@
-version: '2.1'
+version: '3.8'
 services:
 
   # Apache Flink Components:
@@ -19,7 +19,7 @@ services:
       # ES_HOST: elasticsearch
 
   jobmanager:
-    image: flink:1.17.1-scala_2.12-java11
+    image: flink:${FLINK_TAG}
     container_name: jobmanager
     build:
       context: jobmanager
@@ -33,7 +33,7 @@ services:
         jobmanager.rpc.address: jobmanager
 
   taskmanager:
-    image: flink:1.17.1-scala_2.12-java11
+    image: flink:${FLINK_TAG}
     container_name: taskmanager
     depends_on:
       - jobmanager
@@ -149,8 +149,6 @@ services:
     depends_on:
       - broker
       - schemaregistry
-    volumes:
-      - $PWD/data:/data
     environment:
       CONNECT_BOOTSTRAP_SERVERS: broker:29092
       CONNECT_LISTENERS: http://connect:8083
