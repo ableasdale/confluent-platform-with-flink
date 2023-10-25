@@ -7,7 +7,7 @@ This project will set up the following components:
   - control-center
   - restproxy
   - connect
-  - 
+
 - Apache Flink 1.17.1
   - sql-client
   - jobmanager
@@ -20,6 +20,7 @@ When the project is running, you'll be able to access the following URLs in your
 
 And you have access to a number of ReST APIs:
 
+- ReST Proxy <http://localhost:8082>
 - Kafka Connect: <http://localhost:8083>
 - Schema Registry <http://localhost:8084>
 - Broker <http://localhost:8090>
@@ -32,6 +33,32 @@ Build the container instances and start them:
 docker-compose build --pull sql-client
 docker-compose build --pull jobmanager
 docker-compose up
+```
+
+Confirm that the various endpoints are responding:
+
+ReST Proxy:
+
+```bash
+curl -XGET http://localhost:8082/v3/clusters | jq
+```
+
+Connect:
+
+```bash
+curl -XGET http://localhost:8083/ | jq
+```
+
+Schema Registry:
+
+```bash
+curl -XGET http://localhost:8084/config | jq
+```
+
+Broker Metadata:
+
+```bash
+curl -XGET http://localhost:8090/v1/metadata/id | jq
 ```
 
 After the containers have started, data should be getting loaded into Kafka; to confirm this, run:

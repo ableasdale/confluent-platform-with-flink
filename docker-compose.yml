@@ -56,13 +56,14 @@ services:
   # Confluent Platform Components below:
 
   broker:
-    image: confluentinc/cp-server:${CP_TAG}
-    hostname: broker
     container_name: broker
+    hostname: broker
+    image: confluentinc/cp-server:${CP_TAG}
     ports:
       - "9101:9101"
       - "9092:9092"
       - "8090:8090"
+    restart: always
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
@@ -97,29 +98,35 @@ services:
       KAFKA_CONFLUENT_METRICS_ENABLE: 'true'
 
   control-center:
-    image: confluentinc/cp-enterprise-control-center:${CP_TAG}
-    hostname: control-center
     container_name: control-center
+    hostname: control-center
+    image: confluentinc/cp-enterprise-control-center:${CP_TAG}
     depends_on:
       - broker
       - schemaregistry
     ports:
       - "9021:9021"
+    restart: always
     environment:
-      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'broker:29092'
-      CONTROL_CENTER_REPLICATION_FACTOR: 1
-      CONTROL_CENTER_STREAMS_NUM_STREAM_THREADS: "5"
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: broker:29092
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: http://schemaregistry:8084
+      CONTROL_CENTER_CONNECT_CONNECT-DEFAULT_CLUSTER: connect:8083
+      CONTROL_CENTER_STREAMS_NUM_STREAM_THREADS: "5"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
 
   restproxy:
     container_name: restproxy
     hostname: restproxy
     image: confluentinc/cp-kafka-rest:${CP_TAG}
-    ports: 
-      - 8082:8082
     depends_on:
       - broker
       - schemaregistry
+    ports: 
+      - 8082:8082
     restart: always
     environment:
       KAFKA_REST_BOOTSTRAP_SERVERS: broker:29092
@@ -127,13 +134,14 @@ services:
       KAFKA_REST_SCHEMA_REGISTRY_URL: http://schemaregistry:8084
 
   schemaregistry:
-    image: confluentinc/cp-schema-registry:${CP_TAG}
-    hostname: schemaregistry
     container_name: schemaregistry
+    hostname: schemaregistry
+    image: confluentinc/cp-schema-registry:${CP_TAG}
     depends_on:
       - broker
     ports:
       - '8084:8084'
+    restart: always
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: broker:29092
@@ -145,10 +153,10 @@ services:
     image: confluentinc/cp-enterprise-replicator:${CP_TAG}
     ports:
       - '8083:8083'
-    restart: always
     depends_on:
       - broker
       - schemaregistry
+    restart: always
     environment:
       CONNECT_BOOTSTRAP_SERVERS: broker:29092
       CONNECT_LISTENERS: http://connect:8083
