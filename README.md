@@ -5,10 +5,15 @@ This project will set up the following components:
 - Confluent Platform 7.5.1
 - Apache Flink 1.17.1
 
-When the project is running, you'll be able to access the following URLs:
+When the project is running, you'll be able to access the following URLs in your browser:
 
 - Confluent Control Center: <http://localhost:9021/>
 - Apache Flink Dashboard: <http://localhost:8081/>
+
+And you have access to a number of ReST APIs:
+
+- Kafka Connect: <http://localhost:8083>
+- Schema Registry <http://localhost:8084> 
 
 ## Getting Started
 
