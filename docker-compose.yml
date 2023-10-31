@@ -11,12 +11,9 @@ services:
     depends_on:
       - broker
       - jobmanager
-    #  - elasticsearch
     environment:
       FLINK_JOBMANAGER_HOST: jobmanager
       KAFKA_BOOTSTRAP: broker
-      # MYSQL_HOST: mysql
-      # ES_HOST: elasticsearch
 
   jobmanager:
     image: flink:${FLINK_TAG}
@@ -43,15 +40,6 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 10
-
-  # Custom Component (TO REMOVE)
-  datagen:
-    image: jark/datagen:0.2
-    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka broker:29092 --speedup 2000"
-    depends_on:
-      - broker
-    environment:
-      KAFKA_BOOTSTRAP: broker
 
   # Confluent Platform Components below:
 
@@ -192,34 +180,3 @@ services:
         /etc/confluent/docker/run &
         #
         sleep infinity
-
-
-# Other components - commented out for now..
-  # mysql:
-  #   image: jark/mysql-example:0.2
-  #   ports:
-  #     - "3306:3306"
-  #   environment:
-  #     - MYSQL_ROOT_PASSWORD=123456
-
-  # elasticsearch:
-  #   image: docker.elastic.co/elasticsearch/elasticsearch:7.6.0
-  #   environment:
-  #     - cluster.name=docker-cluster
-  #     - bootstrap.memory_lock=true
-  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-  #     - discovery.type=single-node
-  #   ports:
-  #     - "9200:9200"
-  #     - "9300:9300"
-  #   ulimits:
-  #     memlock:
-  #       soft: -1
-  #       hard: -1
-  #     nofile:
-  #       soft: 65536
-  #       hard: 65536
-  # kibana:
-  #   image: docker.elastic.co/kibana/kibana:7.6.0
-  #   ports:
-  #     - "5601:5601"
