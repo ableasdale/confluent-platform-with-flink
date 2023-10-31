@@ -8,7 +8,7 @@ This project will set up the following components:
   - restproxy
   - connect
 
-- Apache Flink 1.17.1
+- Apache Flink 1.18
   - sql-client
   - jobmanager
   - taskmanager
@@ -204,7 +204,7 @@ docker-compose exec kafka bash -c 'kafka-console-consumer.sh --topic user_behavi
 
 If you see messages in the Kafka topic, the next thing to do is to access the topic from within Flink:
 
-```
+```bash
 docker-compose exec sql-client ./sql-client.sh
 ```
 
