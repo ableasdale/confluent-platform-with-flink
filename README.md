@@ -173,11 +173,83 @@ CREATE TABLE pageviews (
 Now we can create a `SELECT` statement using the `pageviews` topic as the source:
 
 ```sql
-SELECT * FROM pageviews;
+qq
 ```
 
 We get some output! :)
 
+
+### Set up a `join`
+
+We're going to use user_id for this join
+
+```bash
+curl -i -X PUT http://localhost:8083/connectors/datagen_users/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "kafka.topic": "users",
+            "quickstart": "users",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "value.converter.schemas.enable": "false",
+            "max.interval": 1000,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+```
+
+```sql
+CREATE TABLE users (
+    registertime BIGINT,
+    userid STRING,
+    regionid STRING,
+    gender STRING,
+    `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+    `proc_time` AS PROCTIME(),
+    WATERMARK FOR `ts` AS `ts` 
+) WITH (
+    'connector' = 'kafka', 
+    'topic' = 'users', 
+    'scan.startup.mode' = 'earliest-offset', 
+    'properties.bootstrap.servers' = 'broker:29092', 
+    'value.format' = 'avro-confluent',
+    'value.avro-confluent.schema-registry.url' = 'http://schemaregistry:8084'
+);
+```
+
+You should see:
+
+```
+[INFO] Execute statement succeed.
+```
+
+```sql
+SELECT * FROM users;
+```
+
+
+```bash
+curl -i -X PUT http://localhost:8083/connectors/datagen_stock/config \
+     -H "Content-Type: application/json" \
+     -d '{
+            "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+            "kafka.topic": "stock-trades",
+            "quickstart": "Stock_Trades",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+            "value.converter.schemas.enable": "false",
+            "max.interval": 100,
+            "iterations": 10000000,
+            "tasks.max": "1"
+        }'
+```
+
+```sql
+SELECT * FROM a_101
+  INNER JOIN a_102
+  ON a_101.productid = a_102.orderid;
+```
 
 -----------------------------
 ### Notes below
