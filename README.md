@@ -61,57 +61,9 @@ Broker Metadata:
 curl -XGET http://localhost:8090/v1/metadata/id | jq
 ```
 
-After the containers have started, data should be getting loaded into Kafka; to confirm this, run:
+### Generate some data
 
-```bash
-docker-compose exec broker kafka-console-consumer --topic user_behavior --bootstrap-server broker:29092 --from-beginning --max-messages 10
-```
-
-Now let's connect to the Flink SQL Client:
-
-```bash
-docker-compose exec sql-client sql-client.sh
-```
-
-Let's create a `TABLE` for the topic data:
-
-```sql
-CREATE TABLE user_behavior (
-    user_id BIGINT,
-    item_id BIGINT,
-    category_id BIGINT,
-    behavior STRING,
-    ts TIMESTAMP(3),
-    proctime AS PROCTIME(),   -- generates processing-time attribute using computed column
-    WATERMARK FOR ts AS ts - INTERVAL '5' SECOND  -- defines watermark on ts column, marks ts as event-time attribute
-) WITH (
-    'connector' = 'kafka',  -- using kafka connector
-    'topic' = 'user_behavior',  -- kafka topic
-    'scan.startup.mode' = 'earliest-offset',  -- reading from the beginning
-    'properties.bootstrap.servers' = 'broker:29092',  -- kafka broker address
-    'format' = 'json'  -- the data format is json
-);
-```
-
-You should see:
-
-```
-[INFO] Table has been created.
-```
-
-Let's try running a SQL `SELECT` query to confirm that everything works as expected:
-
-```sql
-SELECT * FROM user_behavior;
-```
-
-Quit out of the SQL Client by running:
-
-```sql
-exit;
-```
-
-Let's use datagen to create some pageviews:
+After the containers have started, we can start by getting data loaded into Kafka; to do this, let's use datagen to create some pageviews:
 
 ```bash
 curl -i -X PUT http://localhost:8083/connectors/datagen_local_01/config \
@@ -126,6 +78,8 @@ curl -i -X PUT http://localhost:8083/connectors/datagen_local_01/config \
             "tasks.max": "1"
         }'
 ```
+
+As soon as that is done, let's run the consumer to inspect the topic:
 
 ```bash
 docker-compose exec broker kafka-console-consumer --topic pageviews --bootstrap-server broker:29092 --from-beginning --max-messages 10
@@ -332,4 +286,12 @@ cp flink-sql-connector-kafka-3.0.0-1.17.jar ../../flink/lib/
 cd ../../flink/lib/
 chown flink:flink flink-sql-connector-kafka-3.0.0-1.17.jar
 exit
+```
+```bash
+docker-compose exec broker kafka-console-consumer --topic user_behavior --bootstrap-server broker:29092 --from-beginning --max-messages 10
+```
+Now let's connect to the Flink SQL Client:
+
+```bash
+docker-compose exec sql-client sql-client.sh
 ```
