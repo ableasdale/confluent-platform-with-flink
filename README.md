@@ -191,13 +191,13 @@ curl -i -X PUT http://localhost:8083/connectors/datagen_users/config \
             "kafka.topic": "users",
             "quickstart": "users",
             "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-            "value.converter.schemas.enable": "false",
             "max.interval": 1000,
             "iterations": 10000000,
             "tasks.max": "1"
         }'
 ```
+
+docker-compose exec sql-client sql-client.sh
 
 ```sql
 CREATE TABLE users (
@@ -228,6 +228,7 @@ You should see:
 SELECT * FROM users;
 ```
 
+Let's create the `stock-trades` topic and load some data into it:
 
 ```bash
 curl -i -X PUT http://localhost:8083/connectors/datagen_stock/config \
@@ -237,19 +238,49 @@ curl -i -X PUT http://localhost:8083/connectors/datagen_stock/config \
             "kafka.topic": "stock-trades",
             "quickstart": "Stock_Trades",
             "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-            "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-            "value.converter.schemas.enable": "false",
             "max.interval": 100,
             "iterations": 10000000,
             "tasks.max": "1"
         }'
 ```
 
+docker-compose exec sql-client sql-client.sh
+
 ```sql
-SELECT * FROM a_101
-  INNER JOIN a_102
-  ON a_101.productid = a_102.orderid;
+CREATE TABLE stock_trades (
+    side STRING,
+    quantity INT,
+    symbol STRING,
+    price INT,
+    account STRING,
+    userid STRING,
+    regionid STRING,
+    `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+    `proc_time` AS PROCTIME(),
+    WATERMARK FOR `ts` AS `ts` 
+) WITH (
+    'connector' = 'kafka', 
+    'topic' = 'stock-trades', 
+    'scan.startup.mode' = 'earliest-offset', 
+    'properties.bootstrap.servers' = 'broker:29092', 
+    'value.format' = 'avro-confluent',
+    'value.avro-confluent.schema-registry.url' = 'http://schemaregistry:8084'
+);
 ```
+
+```sql
+SELECT * FROM stock_trades;
+```
+
+Let's now attempt a join!
+
+```sql
+SELECT * FROM stock_trades
+  INNER JOIN users
+  ON stock_trades.userid = users.userid;
+```
+
+Seems to be working as expected.
 
 -----------------------------
 ### Notes below
