@@ -127,7 +127,7 @@ CREATE TABLE pageviews (
 Now we can create a `SELECT` statement using the `pageviews` topic as the source:
 
 ```sql
-qq
+SELECT * FROM pageviews;
 ```
 
 We get some output! :)
